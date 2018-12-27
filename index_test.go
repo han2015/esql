@@ -13,18 +13,18 @@ func TestParseStruct(t *testing.T) {
 		Description string
 	}
 
-	es.DB().Delete("")
+	es.DB().Delete()
 	ok, err := es.DB().IndexExists()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if ok {
-		t.Log(string(es.DB().ShowMapping("tweet").Response()))
+		t.Log(string(es.DB().ShowMapping().Response()))
 		return
 	}
 
-	c := es.DB().AutoMapping(tweet{}).ShowMapping("tweet")
+	c := es.DB().AutoMapping(tweet{}).ShowMapping()
 	if c.Error != nil {
 		t.Error(err)
 		return

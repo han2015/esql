@@ -1,14 +1,18 @@
 package esql
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"path"
+	"regexp"
+	"strings"
 )
 
 //ServerAddr  It assumes that rawurl was received in an HTTP request.
 //http://locahost:9200
 var server *url.URL
+var indexReg = regexp.MustCompile("[^0-9a-z+-_.]")
 
 func init() {
 	host := "http://locahost:9200"
@@ -24,21 +28,23 @@ func init() {
 }
 
 //NewElasticSearch   a convenient client for gloal
-// concept: index = indexDB; type = table
-// if indexDB not set, it searchs all elasticsearch
-// https://localhost:9200/{indexDB}
-func NewElasticSearch(db string) *ElasticSearch {
-	return &ElasticSearch{indexDB: db}
+// concept: https://www.elastic.co/guide/en/elasticsearch/reference/6.2/_basic_concepts.html
+// Cluster, Node, Index, Document, Shards & Replicas
+// if index not set, it searchs all elasticsearch default
+// https://localhost:9200/
+func NewElasticSearch(indexs ...string) *ElasticSearch {
+	return &ElasticSearch{indexs: strings.Join(indexs, ",")}
 }
 
 // DB allow to define yourself url
-func DB(uri string) *Client {
+func DB(table string) *Client {
 	var db Client
 	db.hostDB = clone()
-	db.hostDB.Path = path.Join(db.hostDB.Path, uri)
+	db.method, db.hostDB.Path = "GET", path.Join(db.hostDB.Path, table)
 	val := url.Values{}
-	val.Set("timeout", "5s")
+	val.Set("timeout", "8s")
 	db.queries = val
+	db.search = F{}
 	return &db
 }
 
@@ -50,44 +56,71 @@ type Response struct {
 	Index        string
 }
 
-//F <= Field
-// convenicent tool for condtions; ideally, you just concentrate on conditions of Match.
-// if you have multi conditions, should make F slice and call search APIs with it.
+type Setting interface {
+	Append(F)
+	Fields() []interface{}
+}
+
+//F <= Find
+// convenicent tool for condtions; ideally, you just concentrate on Settings of Match.
+// if you have multi Settings, should make F slice and call search APIs with it.
 // Format  {"field": setting}
 type F map[string]interface{}
+type Not map[string]interface{}
+
+//Fields make self as Settings
+func (n Not) Fields() (arr []interface{}) {
+	for k, v := range n {
+		arr = append(arr, Not{k: v})
+	}
+	return
+}
 
 //Append copy arr's k/v struct to m
-func (f F) Append(arr ...F) {
-	for _, v := range arr {
-		for k, v := range v {
-			f[k] = v
-		}
+func (n Not) Append(s F) {
+	for k, v := range s {
+		n[k] = v
 	}
 }
 
-//Insert set arr's k/v struct under key field of m
-func (f F) Insert(key string, arr ...F) {
-	t := F{}
-	for _, v := range arr {
-		for k, v := range v {
-			t[k] = v
-		}
+//Fields make self as Settings
+func (f F) Fields() (arr []interface{}) {
+	for k, v := range f {
+		arr = append(arr, F{k: v})
 	}
-	f[key] = t
+	return
+}
+
+//Append copy arr's k/v struct to m
+func (f F) Append(s F) {
+	for k, v := range s {
+		f[k] = v
+	}
 }
 
 //ElasticSearch global DB
 type ElasticSearch struct {
-	indexDB string
+	indexs string
 }
 
 //DB a new db connection, concurrency with same index.
 func (e ElasticSearch) DB() *Client {
-	return DB(e.indexDB)
+	return DB(e.indexs)
 }
 
 // a new server for every Client instance
 func clone() *url.URL {
 	_url := *server
 	return &_url
+}
+
+// if return true, the index is illegal
+// https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-index.html
+func checkIndexName(c *Client) bool {
+	if indexReg.MatchString(c.hostDB.Path) {
+		c.Error = fmt.Errorf("esql: The index name against index name limitations. Reset index with c.Table() firstly")
+		return true
+	}
+
+	return false
 }
