@@ -13,9 +13,17 @@ import (
 //http://locahost:9200
 var server *url.URL
 var indexReg = regexp.MustCompile("[^0-9a-z+-_.]")
+var defaultIndexSetting = F{
+	"settings": F{
+		"index": F{
+			"number_of_shards":   5,
+			"number_of_replicas": 1,
+		},
+	},
+}
 
 func init() {
-	host := "http://locahost:9200"
+	host := "http://localhost:9200"
 	if v := os.Getenv("ELASTICSEARCH_HOST"); v != "" {
 		host = v
 	}

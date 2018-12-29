@@ -22,9 +22,10 @@ type Client struct {
 	//all Settings
 	search F
 
-	joins  F
-	dismax F // similar with boolQuery, but is parent of bool
-	bools  F // boolQuery
+	joinType string
+	joins    F
+	dismax   F // similar with boolQuery, but is parent of bool
+	bools    F // boolQuery
 
 	must    []F   //where have to assigned
 	should  []F   //or and where default match
@@ -100,7 +101,7 @@ func (c *Client) MakeQuery() *Client {
 		c.Error = fmt.Errorf("make-query process more than once")
 		return c
 	}
-
+	_search := F{}
 	_bool := F{}
 	if len(c.must) > 0 {
 		_bool["must"] = c.must
@@ -120,9 +121,16 @@ func (c *Client) MakeQuery() *Client {
 	//https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-dis-max-query.html
 	if len(c.dismax) > 0 {
 		c.dismax["queries"] = F{"bool": _bool}
-		c.search["query"] = F{"dis_max": c.dismax}
+		_search["query"] = F{"dis_max": c.dismax}
 	} else {
-		c.search["query"] = F{"bool": _bool}
+		_search["query"] = F{"bool": _bool}
+	}
+
+	if len(c.joins) > 0 {
+		c.joins["query"] = _search["query"]
+		c.search["query"] = F{c.joinType: c.joins}
+	} else {
+		c.search["query"] = _search["query"]
 	}
 
 	data, err := json.Marshal(c.search)

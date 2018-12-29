@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"path"
 	"reflect"
-	"strings"
 )
 
 // Find  makes search querry, then start query, and scan the result to i.
@@ -141,7 +140,8 @@ func (c *Client) Limit(n ...int) *Client {
 	return c
 }
 
-//StringQuery {"query_string" : { "query": "value string", "fields" : ["name1", "name2"], "other" : interface}}
+//StringQuery Perform the query on all fields detected in the mapping that can be queried. Will be used by default when the _all field is disabled and no default_field is specified (either in the index settings or in the request body) and no fields are specified.
+// {"query_string" : { "query": "value string", "fields" : ["name1", "name2"], "other" : interface}}
 // F{ "query": "value string", "fields" : ["name1", "name2"], "other" : interface}
 // https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-query-string-query.html#
 func (c *Client) StringQuery(i ...F) *Client {
@@ -149,7 +149,8 @@ func (c *Client) StringQuery(i ...F) *Client {
 	return c
 }
 
-//SimpleStringSelect {"simple_query_string" : { "query": "value string", "fields" : ["name1", "name2"], "other" : interface}}
+//SimpleStringSelect Perform the query on all fields detected in the mapping that can be queried. Will be used by default when the _all field is disabled and no default_field is specified (either in the index settings or in the request body) and no fields are specified.
+// {"simple_query_string" : { "query": "value string", "fields" : ["name1", "name2"], "other" : interface}}
 // F{ "query": "value string", "fields" : ["name1", "name2"], "other" : interface}
 // https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-simple-query-string-query.html
 func (c *Client) SimpleStringSelect(i ...F) *Client {
@@ -290,7 +291,7 @@ func (c *Client) reflect(types string, i interface{}) (arr []F) {
 		for n := 0; n < l; n++ {
 			not := tt.Index(n).Elem().Type().Name()
 			for _, f := range cons[n].Fields() {
-				if not == "Not" { //Note: must reflect on i(v),
+				if not == "Not" {
 					c.mustnot = append(c.mustnot, Not{types: f})
 					continue
 				}
@@ -333,15 +334,20 @@ func (c *Client) reflect(types string, i interface{}) (arr []F) {
 //         }
 //     }
 // }
-func (c *Client) Joins(parentOrChild, on string, i F) *Client {
-	if strings.Contains(parentOrChild, "parent") {
-		i["parent_type"] = on
-		c.joins = F{"has_parent": i}
-		return c
+func (c *Client) Joins(types, on string, i ...F) *Client {
+	_set := F{}
+	for _, v := range i {
+		_set.Append(v)
 	}
-
-	i["type"] = on
-	c.joins = F{"has_child": i}
+	switch types {
+	case "nested":
+		_set["path"] = on
+	case "has_parent":
+		_set["parent_type"] = on
+	case "has_child":
+		_set["type"] = on
+	}
+	c.joinType, c.joins = types, _set
 	return c
 }
 

@@ -75,33 +75,43 @@ func (c *Client) ShowMapping() *Client {
 	return c.exec(c.hostDB.String())
 }
 
-/* news research:
-1)put have to exact doc id
-2)post used to auto create new doc
-*/
+/*
+https://www.elastic.co/guide/en/elasticsearch/painless/6.5/painless-context-examples.html
+types of elasticsearch
 
-// curl -X PUT "localhost:9200/shakespeare" -H 'Content-Type: application/json' -d'
-// {
-//  "mappings": {
-//   "doc": {
-//    "properties": {
-//     "speaker": {"type": "keyword"},
-//     "play_name": {"type": "keyword"},
-//     "line_id": {"type": "integer"},
-//     "speech_number": {"type": "integer"}
-//    }
-//   }
-//  }
-// }
-// '
+type golang struct {
+	First string
+	Last  string
+}
+type as3 struct {
+	Name string
+}
+
+type mysql struct {
+	Number int
+	Name   string
+}
+type employee struct {
+	// https://www.elastic.co/guide/en/elasticsearch/reference/6.5/object.html
+	Golang golang `esql:"dynamic:strict;enabled:false"`
+
+	// https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-nested-query.html
+	As3 []as3 `esql:"type:nested"`
+
+	//https://www.elastic.co/guide/en/elasticsearch/reference/6.5/array.html
+	Mysql       []mysql
+	Gender      string    `esql:"-"`
+	Age         int       `esql:"type:integer"`
+	JoinDate    time.Time
+	Description string `esql:"type:text;analyzer:english;ignore_above:500"`
+}
+*/
 
 //AutoMapping set up index's mapping by a assigned struct
 //struct or *struct directly and mapping json directly
 //https://www.elastic.co/guide/en/elasticsearch/reference/6.5/mapping.html
 //todos: 1) how to set 倒排索引
 //       2) support mapping structs AutoMapping(&a{},&bb{},&cd{},&e{})
-//		 3) dyncmic https://www.elastic.co/guide/cn/elasticsearch/guide/current/dynamic-mapping.html
-// 		 4) support slice https://www.elastic.co/guide/cn/elasticsearch/guide/current/complex-core-fields.html#object-arrays
 func (c *Client) AutoMapping(i interface{}) *Client {
 	if checkIndexName(c) {
 		return c
@@ -112,17 +122,8 @@ func (c *Client) AutoMapping(i interface{}) *Client {
 		return c
 	}
 
-	if !ok {
-		if err := c.CreateIndex(F{
-			"settings": F{
-				"index": F{
-					"number_of_shards":   5,
-					"number_of_replicas": 1,
-				},
-			},
-		}).Error; err != nil {
-			return c
-		}
+	if !ok && c.CreateIndex(defaultIndexSetting).Error != nil {
+		return c
 	}
 
 	var mapStr string
@@ -130,58 +131,103 @@ func (c *Client) AutoMapping(i interface{}) *Client {
 	switch t.Kind() {
 	case reflect.Ptr:
 		t = t.Elem()
-		props := parseStruct(t)
-		str, _ := json.Marshal(F{"properties": props})
-		mapStr = fmt.Sprintf(`{"mappings":{"%s":%s}}`, t.Name(), str)
+		fallthrough
 	case reflect.Struct:
 		parseStruct(t)
 		props := parseStruct(t)
 		str, _ := json.Marshal(F{"properties": props})
-		mapStr = fmt.Sprintf(`{"mappings":{"%s": %s}}`, t.Name(), str)
-	case reflect.String:
-		mapStr = i.(string)
+		mapStr = fmt.Sprintf(`%s`, str)
+	default:
+		c.Error = fmt.Errorf("only support struct or &struct")
+		return c
 	}
 
 	c.method = "PUT"
 	c.hostDB.Path = path.Join(c.hostDB.Path, "_mapping/_doc")
+	c.template = mapStr
 	return c.exec(c.hostDB.String(), mapStr)
 }
 
-// type Emplloy struct {
-// 	Name        string
-// 	Age         int       `esql:"type:integer"`
-// 	JoinDate    time.Time `esql:"type:text;index:analyzed;analyzer:english;ignore_above:500"`
-// 	Description string
-// }
 func parseStruct(t reflect.Type) F {
 	maps := F{}
 	for i := 0; i < t.NumField(); i++ {
 		fd := t.Field(i)
 		ft := fd.Type.Kind()
+		tags := fd.Tag.Get("esql")
+		if tags == "-" {
+			maps[fd.Name] = F{"enabled": false}
+			continue
+		}
 
+		_set := parseTags(tags)
 		if fd.Type.Name() == "Duration" || strings.Contains(fd.Type.Name(), "Time") {
-		} else if ft == reflect.Struct {
-			// 需要重新考虑结构解析
-			//bug! https://www.elastic.co/guide/cn/elasticsearch/guide/current/complex-core-fields.html#_%E5%86%85%E9%83%A8%E5%AF%B9%E8%B1%A1%E7%9A%84%E6%98%A0%E5%B0%84
-			maps[fd.Name] = parseStruct(fd.Type)
-			continue
-		} else if ft == reflect.Ptr {
-			maps[fd.Name] = parseStruct(fd.Type.Elem())
+			if _set["type"] == nil {
+				_set["type"] = "date"
+			}
+			maps[fd.Name] = _set
 			continue
 		}
 
-		tag := fd.Tag.Get("esql")
-		if tag == "" {
-			continue
+		switch ft {
+		case reflect.Map:
+			if _set["type"] == nil {
+				_set["type"] = "object"
+			}
+		case reflect.Ptr:
+			fd.Type = fd.Type.Elem()
+			fallthrough
+		case reflect.Struct:
+			_set["properties"] = parseStruct(fd.Type)
+		case reflect.Slice:
+			if _set["type"] == nil {
+				//here will not set it's properties, caused es only index nested array!
+				_set["type"] = "object"
+			} else {
+				//should indicate exactly to nested
+				_set["properties"] = parseStruct(fd.Type.Elem())
+			}
+		case reflect.String:
+			if _set["type"] == nil {
+				_set["type"] = "text"
+			}
+		case reflect.Int16:
+		case reflect.Int32:
+		case reflect.Int8:
+		case reflect.Uint:
+		case reflect.Uint32:
+		case reflect.Uint64:
+		case reflect.Int:
+			if _set["type"] == nil {
+				_set["type"] = "integer"
+			}
+		case reflect.Float32:
+		case reflect.Float64:
+			if _set["type"] == nil {
+				_set["type"] = "double"
+			}
+		case reflect.Bool:
+			if _set["type"] == nil {
+				_set["type"] = "double"
+			}
+		default:
+			if _set["type"] == nil {
+				_set["type"] = "keyword"
+			}
 		}
-
-		_m := F{}
-		for _, v := range strings.Split(tag, ";") {
-			a := strings.Split(v, ":")
-			_m[a[0]] = a[1]
-		}
-		maps[fd.Name] = _m
+		maps[fd.Name] = _set
 	}
 
 	return maps
+}
+
+func parseTags(str string) F {
+	_m := F{}
+	if str == "" {
+		return _m
+	}
+	for _, v := range strings.Split(str, ";") {
+		a := strings.Split(v, ":")
+		_m[a[0]] = a[1]
+	}
+	return _m
 }

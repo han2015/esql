@@ -65,18 +65,46 @@ func TestDisMax(t *testing.T) {
 func TestBool(t *testing.T) {
 	result := `{"query":{"bool":{"filter":[{"term":{"tag":"tech"}}],"must":[{"match":{"name":"John"}}],"mustnot":[{"range":{"age":{"gte":10,"lte":20}}}],"should":[{"match":{"name":"elasticsearch"}}]}}}`
 	c := es.DB()
-	if err := c.Bool(esql.F{"boost": 1}).
-		Must(esql.F{"name": "John"}).
+	if err := c.Must(esql.F{"name": "John"}).
 		Should(esql.F{"name": "elasticsearch"}).
 		Term(esql.F{"tag": "tech"}).
-		Range(esql.Not{"age": esql.F{"gte": 10, "lte": 20}}).
-		MakeQuery().Error; err != nil {
+		Range(esql.Not{"age": esql.F{"gte": 10, "lte": 20}}, esql.F{"tag": "tech"}).
+		Limit(3, 4).
+		MakeQuery().
+		Error; err != nil {
 		t.Fatal(err)
 	}
+
 	if s := c.Template(); s == result {
 		t.Log(c.Template())
 		return
 	}
 
 	t.Fatal(c.Template())
+}
+
+func TestJoins(t *testing.T) {
+	result := []string{`{"from":3,"query":{"nested":{"path":"blog","query":{"bool":{"filter":[{"term":{"tag":"tech"}}],"must":[{"match":{"name":"John"}}]}}}},"size":4}`,
+		`{"from":3,"query":{"has_parent":{"parent_type":"blog","query":{"bool":{"filter":[{"term":{"tag":"tech"}}],"must":[{"match":{"name":"John"}}]}}}},"size":4}`,
+		`{"from":3,"query":{"has_child":{"query":{"bool":{"filter":[{"term":{"tag":"tech"}}],"must":[{"match":{"name":"John"}}]}},"type":"blog"}},"size":4}`}
+
+	arr := []string{"nested", "has_parent", "has_child"}
+	for k, v := range arr {
+		c := es.DB()
+		if err := c.Joins(v, "blog").Must(esql.F{"name": "John"}).
+			Term(esql.F{"tag": "tech"}).
+			Limit(3, 4).
+			MakeQuery().
+			Error; err != nil {
+			t.Fatal(err)
+		}
+
+		if s := c.Template(); s == result[k] {
+			t.Log(c.Template())
+			continue
+		}
+
+		t.Fatalf("should got :%s\n, but got: %s\v", result[k], c.Template())
+	}
+
 }
