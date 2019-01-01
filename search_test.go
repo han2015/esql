@@ -28,7 +28,7 @@ func TestDisMax(t *testing.T) {
 	result := `{"query":{"bool":{"filter":[{"term":{"tag":"tech"}}],"must":[{"match":{"name":"John"}}],"mustnot":[{"range":{"age":{"gte":10,"let":20}}}],"should":[{"match":{"name":"elasticsearch"}},{"match":{"tag":"wow"}}]}}}`
 	c := es.DB()
 	if err := c.Dismax(esql.F{"boost": 1}).Match(esql.F{"name": "John"}).Match(esql.F{"name": "John"}).
-		MakeQuery().Error; err != nil {
+		Serialize().Error; err != nil {
 		t.Fatal(err)
 	}
 	if s := c.Template(); s == result {
@@ -70,7 +70,7 @@ func TestBool(t *testing.T) {
 		Term(esql.F{"tag": "tech"}).
 		Range(esql.Not{"age": esql.F{"gte": 10, "lte": 20}}, esql.F{"tag": "tech"}).
 		Limit(3, 4).
-		MakeQuery().
+		Serialize().
 		Error; err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func TestJoins(t *testing.T) {
 		if err := c.Joins(v, "blog").Must(esql.F{"name": "John"}).
 			Term(esql.F{"tag": "tech"}).
 			Limit(3, 4).
-			MakeQuery().
+			Serialize().
 			Error; err != nil {
 			t.Fatal(err)
 		}

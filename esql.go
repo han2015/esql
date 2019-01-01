@@ -53,6 +53,9 @@ func DB(table string) *Client {
 	val.Set("timeout", "8s")
 	db.queries = val
 	db.search = F{}
+	db.metrics = F{}
+	db.groups = F{}
+	db.aggregations = F{}
 	return &db
 }
 

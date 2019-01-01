@@ -126,28 +126,21 @@ func (c *Client) Serialize() *Client {
 	if len(c.dismax) > 0 {
 		c.dismax["queries"] = F{"bool": _bool}
 		_search["query"] = F{"dis_max": c.dismax}
-	} else {
+	} else if len(_bool) > 0 {
 		_search["query"] = F{"bool": _bool}
 	}
 
 	if len(c.joins) > 0 {
 		c.joins["query"] = _search["query"]
 		c.search["query"] = F{c.joinType: c.joins}
-	} else {
+	} else if len(_search) > 0 {
 		c.search["query"] = _search["query"]
 	}
 
-	for k, v := range c.metrics {
-		if c.groups[k] != nil {
-			c.groups[k].(F)["aggs"] = v
-			delete(c.metrics, k)
-			continue
-		}
-		c.aggregations[k] = v
-	}
+	c.aggregations.Append(c.metrics)
+	c.aggregations.Append(c.groups)
 
-	if len(c.groups) > 0 {
-		c.aggregations.Append(c.groups)
+	if len(c.aggregations) > 0 {
 		c.search["aggs"] = c.aggregations
 	}
 
@@ -201,7 +194,7 @@ func (c *Client) exec(uri string, data ...string) *Client {
 }
 
 func (c *Client) clear() *Client {
-	c.dismax, c.bools, c.joins = nil, nil, nil
+	c.dismax, c.bools, c.joins, c.metrics, c.groups, c.aggregations = nil, nil, nil, nil, nil, nil
 	c.must, c.mustnot, c.should, c.filter = nil, nil, nil, nil
 	return c
 }
