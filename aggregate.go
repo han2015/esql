@@ -1,6 +1,9 @@
 package esql
 
-import "fmt"
+import (
+	"fmt"
+	"reflect"
+)
 
 /*
 TODOS:
@@ -100,8 +103,8 @@ func (c *Client) GroupGeoDistance(field, origin string, i ...F) *Client {
 //Avg A single-value metrics aggregation that computes the average of numeric values that are extracted from the aggregated documents.
 //https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-avg-aggregation.html
 //"avg" : { "field" : "grade" }
-func (c *Client) Avg(field, onGroup string, i ...F) *Client {
-	return c.setMetrics("avg", field, onGroup, i)
+func (c *Client) Avg(field string, i ...interface{}) *Client {
+	return c.setMetrics("avg", field, i)
 }
 
 // Cardinality https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-cardinality-aggregation.html
@@ -109,38 +112,38 @@ func (c *Client) Avg(field, onGroup string, i ...F) *Client {
 // 	"field" : "_doc",
 // 	"precision_threshold": 100
 // }
-func (c *Client) Cardinality(field, onGroup string, i ...F) *Client {
-	return c.setMetrics("cardinality", field, onGroup, i)
+func (c *Client) Cardinality(field string, i ...interface{}) *Client {
+	return c.setMetrics("cardinality", field, i)
 }
 
 //ExtendedStats https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-extendedstats-aggregation.html
-func (c *Client) ExtendedStats(field, onGroup string, i ...F) *Client {
-	return c.setMetrics("extended_stats", field, onGroup, i)
+func (c *Client) ExtendedStats(field string, i ...interface{}) *Client {
+	return c.setMetrics("extended_stats", field, i)
 }
 
 //GeoBounds https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-geobounds-aggregation.html
-func (c *Client) GeoBounds(field, onGroup string, i ...F) *Client {
-	return c.setMetrics("geo_bounds", field, onGroup, i)
+func (c *Client) GeoBounds(field string, i ...interface{}) *Client {
+	return c.setMetrics("geo_bounds", field, i)
 }
 
 //GeoCentroid https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-geocentroid-aggregation.html
-func (c *Client) GeoCentroid(field, onGroup string, i ...F) *Client {
-	return c.setMetrics("geo_centroid", field, onGroup, i)
+func (c *Client) GeoCentroid(field string, i ...interface{}) *Client {
+	return c.setMetrics("geo_centroid", field, i)
 }
 
 //Max https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-max-aggregation.html
-func (c *Client) Max(field, onGroup string, i ...F) *Client {
-	return c.setMetrics("max", field, onGroup, i)
+func (c *Client) Max(field string, i ...interface{}) *Client {
+	return c.setMetrics("max", field, i)
 }
 
 //Min https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-min-aggregation.html
-func (c *Client) Min(field, onGroup string, i ...F) *Client {
-	return c.setMetrics("min", field, onGroup, i)
+func (c *Client) Min(field string, i ...interface{}) *Client {
+	return c.setMetrics("min", field, i)
 }
 
 //Percentiles https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-percentile-aggregation.html
-func (c *Client) Percentiles(field, onGroup string, i ...F) *Client {
-	return c.setMetrics("percentiles", field, onGroup, i)
+func (c *Client) Percentiles(field string, i ...interface{}) *Client {
+	return c.setMetrics("percentiles", field, i)
 }
 
 //PercentileRanks https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-percentile-rank-aggregation.html
@@ -149,39 +152,37 @@ func (c *Client) Percentiles(field, onGroup string, i ...F) *Client {
 // 	"values" : [500, 600],
 //	"keyed": false
 // }
-func (c *Client) PercentileRanks(field, onGroup string, i ...F) *Client {
-	return c.setMetrics("percentile_ranks", field, onGroup, i)
+func (c *Client) PercentileRanks(field string, i ...interface{}) *Client {
+	return c.setMetrics("percentile_ranks", field, i)
 }
 
 //Stats https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-stats-aggregation.html
-func (c *Client) Stats(field, onGroup string, i ...F) *Client {
-	return c.setMetrics("stats", field, onGroup, i)
+func (c *Client) Stats(field string, i ...interface{}) *Client {
+	return c.setMetrics("stats", field, i)
 }
 
 //Sum https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-sum-aggregation.html
-func (c *Client) Sum(field, onGroup string, i ...F) *Client {
-	return c.setMetrics("sum", field, onGroup, i)
+func (c *Client) Sum(field string, i ...interface{}) *Client {
+	return c.setMetrics("sum", field, i)
 }
 
 //Count https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-valuecount-aggregation.html
-func (c *Client) Count(field, onGroup string, i ...F) *Client {
-	return c.setMetrics("count", field, onGroup, i)
+func (c *Client) Count(field string, i ...interface{}) *Client {
+	return c.setMetrics("count", field, i)
 }
 
 //ScriptedMetric https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-scripted-metric-aggregation.html
 func (c *Client) ScriptedMetric(i F) *Client {
-	return c.setMetrics("scripted_metric", "", "*", []F{i})
+	return c.setMetrics("scripted_metric", "", []interface{}{i})
 }
 
 //WeightedAvg https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-weight-avg-aggregation.html
-func (c *Client) WeightedAvg(field, weight, onGroup string, i ...F) *Client {
+func (c *Client) WeightedAvg(field, weight string, i ...interface{}) *Client {
 	_set := F{}
 	_set["value"] = F{"field": field}
 	_set["weight"] = F{"field": weight}
-	if len(i) > 0 {
-		i[0].Append(_set)
-	}
-	return c.setMetrics("weighted_avg", "", onGroup, i)
+	i = append(i, _set)
+	return c.setMetrics("weighted_avg", "", i)
 }
 
 func (c *Client) setGroups(types, field string, i []F) *Client {
@@ -198,11 +199,18 @@ func (c *Client) setGroups(types, field string, i []F) *Client {
 	return c
 }
 
-func (c *Client) setMetrics(types, field, onGroup string, i []F) *Client {
+func (c *Client) setMetrics(types, field string, i []interface{}) *Client {
+	var onGroup string
 	_set := F{}
-	if len(i) > 0 {
-		_set = i[0]
+	for _, v := range i {
+		switch reflect.TypeOf(v).Kind() {
+		case reflect.String:
+			onGroup = v.(string)
+		case reflect.Map:
+			_set.Append(v.(F))
+		}
 	}
+
 	if field != "" {
 		_set["field"] = field
 	}
