@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path"
 	"reflect"
+	"strings"
 )
 
 // Find  makes search querry, then start query, and scan the result to i.
@@ -13,7 +14,7 @@ import (
 // this should be the last chain when you do any search.
 // es.DB().Where(F{}).Match(F{}).Not(F{}).Or(F{}).Between(F{}).In(F{}).Range(F{}).Term(F{}).Order(F{}).Limit(5).Find(&Response{})
 func (c *Client) Find(i interface{}) *Client {
-	c.MakeQuery()
+	c.Serialize()
 	c.hostDB.Path = path.Join(c.hostDB.Path, "_search")
 	if i == nil {
 		return c.exec(c.hostDB.String(), c.template)
@@ -261,6 +262,62 @@ func (c *Client) Wildcard(i ...Setting) *Client {
 	return c
 }
 
+// Scroll search
+// https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-request-scroll.html
+// size The 'size' parameter allows you to configure the maximum number of hits to be returned with each batch of results.
+// expires: https://www.elastic.co/guide/en/elasticsearch/reference/6.5/common-options.html#time-units
+func (c *Client) Scroll(size int, expires string) *Client {
+	c.search["size"] = size
+	c.queries.Set("scroll", expires)
+	return c
+}
+
+// GetScroll The result from the above request includes a _scroll_id, which should be passed to the scroll API in order to retrieve the next batch of results.
+// it starts a query directly, should use alone.
+func (c *Client) GetScroll(scrollID, expires string) *Client {
+	if expires == "" {
+		expires = "1m"
+	}
+	data, _ := json.Marshal(F{"scroll": expires, "scroll_id": scrollID})
+	host := strings.Split(c.hostDB.String(), "/"+c.hostDB.Path)[0]
+	return c.exec(host+"/_search/scroll", string(data))
+}
+
+//Joins elasticsearch-join different with sql's action
+// 'i' is a setting of Joins, should only one, don't use it as conditions
+// https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-nested-query.html
+// https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-has-child-query.html
+// https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-has-parent-query.html
+// {
+//     "query": {
+//         "has_child" : {
+//             "type" : "blog_tag",
+//             "score_mode" : "min",
+//             "query" : {
+//                 "term" : {
+//                     "tag" : "something"
+//                 }
+//             }
+//         }
+//     }
+// }
+func (c *Client) Joins(types, on string, i ...F) *Client {
+	_set := F{}
+	for _, v := range i {
+		_set.Append(v)
+	}
+	switch types {
+	case "nested":
+		_set["path"] = on
+	case "has_parent":
+		_set["parent_type"] = on
+	case "has_child":
+		_set["type"] = on
+	}
+	c.joinType, c.joins = types, _set
+	return c
+}
+
 // MatchAll { "match_all": {}}
 // F{"field": interface} or nil
 // https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-match-all-query.html
@@ -278,7 +335,7 @@ func (c *Client) MatchAll(i F) *Client {
 // ValidateQuery i to get doc type
 func (c *Client) ValidateQuery() *Client {
 	c.hostDB.Path = path.Join(c.hostDB.Path, "_validate/query?explain")
-	return c.MakeQuery().exec(c.hostDB.String(), c.template)
+	return c.Serialize().exec(c.hostDB.String(), c.template)
 }
 
 // divide Setting into correct query
@@ -318,44 +375,6 @@ func (c *Client) reflect(types string, i interface{}) (arr []F) {
 }
 
 ///////////////////todos//////////////////////
-//Joins elasticsearch-join different with sql's action
-// https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-has-child-query.html
-// https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-has-parent-query.html
-// {
-//     "query": {
-//         "has_child" : {
-//             "type" : "blog_tag",
-//             "score_mode" : "min",
-//             "query" : {
-//                 "term" : {
-//                     "tag" : "something"
-//                 }
-//             }
-//         }
-//     }
-// }
-func (c *Client) Joins(types, on string, i ...F) *Client {
-	_set := F{}
-	for _, v := range i {
-		_set.Append(v)
-	}
-	switch types {
-	case "nested":
-		_set["path"] = on
-	case "has_parent":
-		_set["parent_type"] = on
-	case "has_child":
-		_set["type"] = on
-	}
-	c.joinType, c.joins = types, _set
-	return c
-}
-
-//Group todo https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics.html
-func (c *Client) Group(i F) *Client {
-	return c
-}
-
 //Boosting todo https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-boosting-query.html
 func (c *Client) Boosting(i F) *Client {
 	return c

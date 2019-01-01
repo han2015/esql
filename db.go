@@ -32,6 +32,10 @@ type Client struct {
 	filter  []F   //where
 	mustnot []Not //not
 
+	aggregations F
+	metrics      F
+	groups       F //as bucket aggregation
+
 	Error    error
 	queries  url.Values //query in path
 	template string     //final json data
@@ -96,7 +100,7 @@ func (c *Client) Indices() *Client {
 }
 
 //MakeQuery prepares query body
-func (c *Client) MakeQuery() *Client {
+func (c *Client) Serialize() *Client {
 	if c.template != "" {
 		c.Error = fmt.Errorf("make-query process more than once")
 		return c
@@ -131,6 +135,20 @@ func (c *Client) MakeQuery() *Client {
 		c.search["query"] = F{c.joinType: c.joins}
 	} else {
 		c.search["query"] = _search["query"]
+	}
+
+	for k, v := range c.metrics {
+		if c.groups[k] != nil {
+			c.groups[k].(F)["aggs"] = v
+			delete(c.metrics, k)
+			continue
+		}
+		c.aggregations[k] = v
+	}
+
+	if len(c.groups) > 0 {
+		c.aggregations.Append(c.groups)
+		c.search["aggs"] = c.aggregations
 	}
 
 	data, err := json.Marshal(c.search)

@@ -111,7 +111,6 @@ type employee struct {
 //struct or *struct directly and mapping json directly
 //https://www.elastic.co/guide/en/elasticsearch/reference/6.5/mapping.html
 //todos: 1) how to set 倒排索引
-//       2) support mapping structs AutoMapping(&a{},&bb{},&cd{},&e{})
 func (c *Client) AutoMapping(i interface{}) *Client {
 	if checkIndexName(c) {
 		return c
