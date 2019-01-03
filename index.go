@@ -103,15 +103,20 @@ type employee struct {
 	Gender      string    `esql:"-"`
 	Age         int       `esql:"type:integer"`
 	JoinDate    time.Time
-	Description string `esql:"type:text;analyzer:english;ignore_above:500"`
+	//fields config: https://www.elastic.co/guide/en/elasticsearch/reference/current/multi-fields.html
+	Description string `esql:"type:text;analyzer:english;ignore_above:500;fields:name,type,analyzer"`
 }
 */
 
 //AutoMapping set up index's mapping by a assigned struct
 //struct or *struct directly and mapping json directly
 //https://www.elastic.co/guide/en/elasticsearch/reference/6.5/mapping.html
-//todos: 1) how to set 倒排索引
 func (c *Client) AutoMapping(i interface{}) *Client {
+	defer func() {
+		if r := recover(); r != nil {
+			c.Error = fmt.Errorf("panic error: %v", r)
+		}
+	}()
 	if checkIndexName(c) {
 		return c
 	}
@@ -132,7 +137,6 @@ func (c *Client) AutoMapping(i interface{}) *Client {
 		t = t.Elem()
 		fallthrough
 	case reflect.Struct:
-		parseStruct(t)
 		props := parseStruct(t)
 		str, _ := json.Marshal(F{"properties": props})
 		mapStr = fmt.Sprintf(`%s`, str)
@@ -224,8 +228,19 @@ func parseTags(str string) F {
 	if str == "" {
 		return _m
 	}
+	// fields:name,type,analyzer"
 	for _, v := range strings.Split(str, ";") {
 		a := strings.Split(v, ":")
+		if a[0] == "fields" {
+			_n := F{}
+			fls := strings.Split(a[1], ",")
+			_n["type"] = fls[1]
+			if fls[1] == "text" {
+				_n["analyzer"] = fls[2]
+			}
+			_m["fields"] = F{fls[0]: _n}
+			continue
+		}
 		_m[a[0]] = a[1]
 	}
 	return _m

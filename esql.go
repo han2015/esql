@@ -2,11 +2,13 @@ package esql
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"regexp"
 	"strings"
+	"time"
 )
 
 //ServerAddr  It assumes that rawurl was received in an HTTP request.
@@ -31,7 +33,7 @@ func init() {
 	if err != nil {
 		panic("server address: " + err.Error())
 	}
-
+	http.DefaultClient.Timeout = 10 * time.Second
 	server = _server
 }
 
