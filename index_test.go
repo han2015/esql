@@ -6,12 +6,12 @@ import (
 )
 
 func TestAutoMapping(t *testing.T) {
-	db := es.DB().Table("fuck")
+	db := es.DB().Table("myindex")
 	if err := db.AutoMapping(employee{}).Error; err != nil {
 		t.Fatal(err)
 	}
 	t.Log(db.Template())
-	resp := es.DB().Table("fuck").ShowMapping().Response()
+	resp := es.DB().Table("myindex").ShowMapping().Response()
 	t.Log(string(resp))
 }
 
