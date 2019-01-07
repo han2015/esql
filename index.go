@@ -102,6 +102,7 @@ type employee struct {
 	Mysql       []mysql
 	Gender      string    `esql:"-"`
 	Age         int       `esql:"type:integer"`
+	Location    []float64  `esql:"type:geo_point"`
 	JoinDate    time.Time
 	//fields config: https://www.elastic.co/guide/en/elasticsearch/reference/current/multi-fields.html
 	Description string `esql:"type:text;analyzer:english;ignore_above:500;fields:name,type,analyzer"`
@@ -185,6 +186,8 @@ func parseStruct(t reflect.Type) F {
 			if _set["type"] == nil {
 				//here will not set it's properties, caused es only index nested array!
 				_set["type"] = "object"
+			} else if _set["type"] == "geo_point" {
+				_set["type"] = "geo_point"
 			} else {
 				//should indicate exactly to nested
 				_set["properties"] = parseStruct(fd.Type.Elem())

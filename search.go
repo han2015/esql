@@ -262,6 +262,25 @@ func (c *Client) Wildcard(i ...Setting) *Client {
 	return c
 }
 
+//GeoBox https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-geo-bounding-box-query.html
+// e.g  GeoBox("address.location", 40.73, -74.1, 40.01, -71.12)
+func (c *Client) GeoBox(fieldName string, top, left, bottom, right float64) *Client {
+	geo := F{}
+	geo[fieldName] = F{"top": top, "left": left, "bottom": bottom, "right": right}
+	c.filter = append(c.filter, F{"geo_bounding_box": geo})
+	return c
+}
+
+//GeoDistance https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-geo-distance-query.html
+//dis-units: https://www.elastic.co/guide/en/elasticsearch/reference/6.5/common-options.html#distance-units
+// e.g  GeoDistance("address.location", "200m" 40.73, -74.1)
+func (c *Client) GeoDistance(fieldName, dis string, lat, lon float64) *Client {
+	geo := F{}
+	geo["geo_distance"] = F{"distance": dis, fieldName: F{"lat": lat, "lon": lon}}
+	c.filter = append(c.filter, geo)
+	return c
+}
+
 // Scroll search
 // https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-request-scroll.html
 // size The 'size' parameter allows you to configure the maximum number of hits to be returned with each batch of results.
@@ -384,9 +403,6 @@ func (c *Client) Boosting(i F) *Client {
 func (c *Client) Select(i F) *Client {
 	return c
 }
-
-//Geo queries
-// https://www.elastic.co/guide/en/elasticsearch/reference/6.5/geo-queries.html
 
 //Request Body Search
 // https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-request-body.html
