@@ -2,40 +2,37 @@ package esql_test
 
 import (
 	"testing"
-	"time"
+
+	"github.com/han2015/esql"
 )
 
-func TestAutoMapping(t *testing.T) {
-	db := es.DB().Table("myindex")
-	if err := db.AutoMapping(employee{}).Error; err != nil {
+func TestCreateIndex(t *testing.T) {
+	set := esql.F{
+		"settings": esql.F{
+			"number_of_shards": 1,
+		},
+		"mappings": esql.F{
+			"_doc": esql.F{
+				"properties": esql.F{
+					"Name": esql.F{"type": "keyword"},
+				},
+			},
+		},
+	}
+
+	//switch sql to indextest
+	if err := es.DB().Table("indextest").CreateIndex(set).Error; err != nil {
 		t.Fatal(err)
 	}
-	t.Log(db.Template())
-	resp := es.DB().Table("myindex").ShowMapping().Response()
+
+	if ok, err := es.DB().Table("indextest").IndexExists(); !ok || err != nil {
+		t.Fatal("created, but not existed")
+	}
+	resp := es.DB().Table("indextest").ShowMapping().Response(nil)
 	t.Log(string(resp))
-}
 
-type golang struct {
-	First string
-	Last  string `esql:"type:text"`
-}
-type as3 struct {
-	Name string `esql:"type:keyword"`
-}
-
-type mysql struct {
-	Number int `esql:"type:keyword"`
-	Name   string
-}
-
-type employee struct {
-	Gender      string `esql:"-"`
-	Enable      golang `esql:"enabled:false"`
-	Index       string `esql:"type:text;index:false"`
-	Golang      golang `esql:"dynamic:strict"`
-	As3         []as3  `esql:"type:nested"`
-	Mysql       []mysql
-	Age         int `esql:"type:integer"`
-	JoinDate    time.Time
-	Description string `esql:"type:keyword;ignore_above:500"`
+	es.DB().Table("indextest").Delete()
+	if ok, err := es.DB().Table("indextest").IndexExists(); ok || err != nil {
+		t.Fatal("deleted, but still existed")
+	}
 }

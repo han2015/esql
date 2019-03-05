@@ -24,6 +24,8 @@ import (
 // }
 // https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules.html
 // https://www.elastic.co/guide/en/elasticsearch/reference/6.5/getting-started-create-index.html
+// Advocate to create settings section ofindex in ElasticSearch directly, just setting mappings
+// by AutoMapping. That means you'd better prepare a exsit index, instead use createIndex manaully.
 func (c *Client) CreateIndex(i F) *Client {
 	if checkIndexName(c) {
 		return c

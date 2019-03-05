@@ -168,7 +168,7 @@ func (c *Client) Sum(field string, i ...interface{}) *Client {
 
 //Count https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-valuecount-aggregation.html
 func (c *Client) Count(field string, i ...interface{}) *Client {
-	return c.setMetrics("count", field, i)
+	return c.setMetrics("value_count", field, i)
 }
 
 //ScriptedMetric https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-scripted-metric-aggregation.html

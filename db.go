@@ -89,7 +89,10 @@ func (c *Client) Template() string {
 }
 
 //Response return db http response
-func (c *Client) Response() []byte {
+func (c *Client) Response(result interface{}) []byte {
+	if result != nil {
+		c.Error = json.Unmarshal(c.response, result)
+	}
 	return c.response
 }
 
@@ -116,7 +119,7 @@ func (c *Client) Serialize() *Client {
 	}
 
 	if len(c.mustnot) > 0 {
-		_bool["mustnot"] = c.mustnot
+		_bool["must_not"] = c.mustnot
 	}
 	if len(c.filter) > 0 {
 		_bool["filter"] = c.filter

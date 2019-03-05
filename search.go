@@ -76,11 +76,10 @@ func (c *Client) Or(i ...F) *Client {
 	return c
 }
 
-// In as Terms { "terms": { "field": [ "name1", "name2", "name3"], "other": interface }}
-// F{ "field": [ "name1", "name2", "name3"], "other": interface}
+// In as Terms { "terms": { "field": [ "name1", "name2", "name3"]}}
 // https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-terms-query.html
-func (c *Client) In(field string, values []interface{}, i Setting) *Client {
-	return c.Terms(field, values, i)
+func (c *Client) In(i ...Setting) *Client {
+	return c.Terms(i...)
 }
 
 //Missing as Null {"missing" : {"field" : "name"}}
@@ -88,7 +87,7 @@ func (c *Client) In(field string, values []interface{}, i Setting) *Client {
 // https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-exists-query.html#_literal_missing_literal_query
 func (c *Client) Missing(i ...string) *Client {
 	for _, v := range i {
-		c.mustnot = append(c.mustnot, Not{"exists": v})
+		c.mustnot = append(c.mustnot, Not{"exists": F{"field": v}})
 	}
 	return c
 }
@@ -146,7 +145,7 @@ func (c *Client) Limit(n ...int) *Client {
 // F{ "query": "value string", "fields" : ["name1", "name2"], "other" : interface}
 // https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-query-string-query.html#
 func (c *Client) StringQuery(i ...F) *Client {
-	c.must = append(c.must, F{"query_string": i})
+	c.must = append(c.must, c.reflect("query_string", i)...)
 	return c
 }
 
@@ -155,14 +154,14 @@ func (c *Client) StringQuery(i ...F) *Client {
 // F{ "query": "value string", "fields" : ["name1", "name2"], "other" : interface}
 // https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-simple-query-string-query.html
 func (c *Client) SimpleStringSelect(i ...F) *Client {
-	c.must = append(c.must, F{"simple_query_string": i})
+	c.must = append(c.must, c.reflect("simple_query_string", i)...)
 	return c
 }
 
 //Phrase as MatchPhrase {"match_phrase" : {"field" : interface}}
 // F{ "field" : interface}
 // https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-match-query-phrase.html
-func (c *Client) Phrase(i ...Setting) *Client {
+func (c *Client) Phrase(i ...F) *Client {
 	c.must = append(c.must, c.reflect("match_phrase", i)...)
 	return c
 }
@@ -181,6 +180,7 @@ func (c *Client) MustNot(i ...Not) *Client {
 }
 
 //Should as or https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-bool-query.html#query-dsl-bool-query
+// types e.g(match,term,terms,range,fuzzy...)
 func (c *Client) Should(i ...F) *Client {
 	c.should = append(c.should, c.reflect("match", i)...)
 	return c
@@ -192,20 +192,19 @@ func (c *Client) Filter(i ...F) *Client {
 	return c
 }
 
-//Match as where {"match" : {"field" : interface}}
+//Match  {"match" : {"field" : interface}}
 // F{"field" : interface}
 // https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-match-query.html
 func (c *Client) Match(i ...Setting) *Client {
-	c.should = append(c.should, c.reflect("match", i)...)
+	c.must = append(c.must, c.reflect("match", i)...)
 	return c
 }
 
 //Multy as  MultiMatch { "multi_match": { "query":interface, "field": [ "name1", "name2", "name3"] }}
 // F{"field": [ "name1", "name2", "name3" ], "query":interface}
 // https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-multi-match-query.html
-func (c *Client) Multy(fields []string, s Setting) *Client {
-	s.Append(F{"fields": fields})
-	c.must = append(c.must, c.reflect("multi_match", []Setting{s})...)
+func (c *Client) Multy(i ...Setting) *Client {
+	c.must = append(c.must, c.reflect("multi_match", i)...)
 	return c
 }
 
@@ -229,12 +228,11 @@ func (c *Client) Term(i ...Setting) *Client {
 	return c
 }
 
-// Terms as In { "terms": { "field": [ "name1", "name2", "name3"], "other": interface }}
-// F{ "field": [ "name1", "name2", "name3"], "other": interface}
+// Terms as In { "terms": { "field": [ "name1", "name2", "name3"]}}
+// F{ "field": [ "name1", "name2", "name3"]}
 // https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-terms-query.html
-func (c *Client) Terms(field string, values []interface{}, i Setting) *Client {
-	i.Append(F{field: values})
-	c.filter = append(c.filter, c.reflect("terms", []Setting{i})...)
+func (c *Client) Terms(i ...Setting) *Client {
+	c.filter = append(c.filter, c.reflect("terms", i)...)
 	return c
 }
 
@@ -365,46 +363,23 @@ func (c *Client) reflect(types string, i interface{}) (arr []F) {
 	case "Setting":
 		cons := i.([]Setting)
 		for n := 0; n < l; n++ {
-			not := tt.Index(n).Elem().Type().Name()
-			for _, f := range cons[n].Fields() {
-				if not == "Not" {
-					c.mustnot = append(c.mustnot, Not{types: f})
-					continue
-				}
-				arr = append(arr, F{types: f})
+			if tt.Index(n).Elem().Type().Name() == "Not" {
+				c.mustnot = append(c.mustnot, Not{types: cons[n]})
+				continue
 			}
+			arr = append(arr, F{types: cons[n]})
 		}
 	case "F":
 		fs := i.([]F)
 		for n := 0; n < l; n++ {
-			for _, f := range fs[n].Fields() {
-				arr = append(arr, F{types: f})
-			}
+			arr = append(arr, F{types: fs[n]})
 		}
 	case "Not":
 		fs := i.([]Not)
 		for n := 0; n < l; n++ {
-			for _, f := range fs[n].Fields() {
-				c.mustnot = append(c.mustnot, Not{types: f})
-			}
+			c.mustnot = append(c.mustnot, Not{types: fs[n]})
 		}
 	}
 
 	return
 }
-
-///////////////////todos//////////////////////
-//Boosting todo https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-boosting-query.html
-func (c *Client) Boosting(i F) *Client {
-	return c
-}
-
-//Select todo https://www.elastic.co/guide/en/elasticsearch/reference/6.5/query-dsl-boosting-query.html
-func (c *Client) Select(i F) *Client {
-	return c
-}
-
-//Request Body Search
-// https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-request-body.html
-// bitset store
-// https://www.elastic.co/guide/cn/elasticsearch/guide/current/filter-caching.html
