@@ -15,13 +15,8 @@ easy to set conditions.
    
     1. Match(esql.F{"field":"setting"})
     
-    2. Match(esql.F{"field":"setting","field2":"setting2","field3":"setting3"})
+    2. Match(esql.F{"field":"setting"},esql.F{"field2":"setting2"},esql.F{"field3":"setting3"}) 
     
-    3. Match(esql.F{"field":"setting"},esql.F{"field2":"setting2"},esql.F{"field3":"setting3"}) 
-    
-    4. Match(esql.F{"field":"setting","field2":"setting2"},esql.F{"field3":"setting3"})
-
-    finally, all settings `i` will combine into one Match setting like case 2.
 
 ### Overview
 * Index 
@@ -38,7 +33,6 @@ easy to set conditions.
     * DeleteDoc
     * UpdatePartialDoc
     * AutoIndexDocs
-    * Bulk
      
 * Search
     * Dismax
@@ -115,9 +109,9 @@ it allows you assign a table(index) at first, the following options always work 
 * ###### Condition tool(F & Not):
  ideally, you just concentrate on conditions of Match. if you have multi conditions, should make F slice.
 
-    __F__: a alias of map, name form `Find` and a positive action. 
+    __ F __: a alias of map, name form `Find` and a positive action. 
     
-    __Not__: a alias of map, indicate a negative action. if you use it in __any__ searching api, it will auto as  __MustNot__ condition.
+    __ Not __: a alias of map, indicate a negative action. if you use it in __ any __ searching api, it will auto as  __MustNot__ condition.
     
     
 ### Esql cases:
@@ -126,8 +120,8 @@ it allows you assign a table(index) at first, the following options always work 
   
   var aggregation struct
   var results []struct
-  if err:=es.DB().Where(esq.F{"name":"input my name","age":18}).
-        Match(esqlF{"content":"input the text"}).
+  if err:=es.DB().Where(esq.F{"name":"input my name"},esq.F{"age":18}).
+        Match(esql.F{"content":"input the text"}).
         Not(esql.Not{"name":"do want"}).
         Or(esql.F{"should":"maybeok"}).
         Order(esql.F{"name":"desc"}).
