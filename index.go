@@ -198,18 +198,11 @@ func parseStruct(t reflect.Type) F {
 			if _set["type"] == nil {
 				_set["type"] = "text"
 			}
-		case reflect.Int16:
-		case reflect.Int32:
-		case reflect.Int8:
-		case reflect.Uint:
-		case reflect.Uint32:
-		case reflect.Uint64:
-		case reflect.Int:
+		case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int8, reflect.Uint, reflect.Uint32, reflect.Uint64:
 			if _set["type"] == nil {
 				_set["type"] = "integer"
 			}
-		case reflect.Float32:
-		case reflect.Float64:
+		case reflect.Float32, reflect.Float64:
 			if _set["type"] == nil {
 				_set["type"] = "double"
 			}

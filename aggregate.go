@@ -5,11 +5,6 @@ import (
 	"reflect"
 )
 
-/*
-TODOS:
-	1)TopHits  https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-metrics-top-hits-aggregation.html
-*/
-
 //Group same as GroupTerms https://www.elastic.co/guide/en/elasticsearch/reference/6.5/search-aggregations-bucket-terms-aggregation.html
 //"terms" : { "field" : "genre" }
 func (c *Client) Group(field string, i ...F) *Client {
