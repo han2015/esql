@@ -208,7 +208,7 @@ func parseStruct(t reflect.Type) F {
 			}
 		case reflect.Bool:
 			if _set["type"] == nil {
-				_set["type"] = "double"
+				_set["type"] = "boolean"
 			}
 		default:
 			if _set["type"] == nil {
